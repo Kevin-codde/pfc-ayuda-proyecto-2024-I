@@ -1,5 +1,13 @@
 package proyecto
 
+/*
+	KEVIN ANDRES BEJARANO - 2067678
+
+	JOHAN SEBASTIAN ACOSTA -2380393
+
+	JUAN DAVID GUTIERREZ- 2060104
+*/
+
 class Itinerario() {
 
   type aeropuertos = List[Aeropuerto]
