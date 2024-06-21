@@ -13,21 +13,27 @@ class Itinerario() {
   type aeropuertos = List[Aeropuerto]
   type vuelos = List[Vuelo]
 
-  def buscarVuelos(origen: String, destino: String, vuelosDisponibles: List[Vuelo], itinerarioActual: List[Vuelo]): List[List[Vuelo]] = {
-    if (origen == destino) List(itinerarioActual)
-    else {
-      vuelosDisponibles.filter(_.Org == origen).flatMap { vuelo =>
-        buscarVuelos(vuelo.Dst, destino, vuelosDisponibles.filterNot(_ == vuelo), itinerarioActual :+ vuelo)
-      }
-    }
+def buscarVuelos(origen: String, destino: String, vuelosDisponibles: List[Vuelo], itinerarioActual: List[Vuelo], visitados: mutable.Set[String]): List[List[Vuelo]] = {
+  if (origen == destino) List(itinerarioActual)
+  else if (visitados.contains(origen)) Nil
+  else {
+    visitados += origen
+    val vuelosPosibles = vuelosDisponibles.filter(_.Org == origen)
+    val resultados = for {
+      vuelo <- vuelosPosibles
+      nuevosItinerarios <- buscarVuelos(vuelo.Dst, destino, vuelosDisponibles.filterNot(_ == vuelo), itinerarioActual :+ vuelo, visitados)
+    } yield nuevosItinerarios
+    visitados -= origen
+    resultados
   }
+}
 
-  def itinerarios(vuelos: List[Vuelo], aeropuertos: List[Aeropuerto]): (String, String) => List[List[Vuelo]] = {
-    def encontrarItinerarios(cod1: String, cod2: String): List[List[Vuelo]] = {
-      buscarVuelos(cod1, cod2, vuelos, List())
-    }
-    encontrarItinerarios
+def itinerarios(vuelos: List[Vuelo], aeropuertos: List[Aeropuerto]): (String, String) => List[List[Vuelo]] = {
+  def encontrarItinerarios(cod1: String, cod2: String): List[List[Vuelo]] = {
+    buscarVuelos(cod1, cod2, vuelos, List(), mutable.Set())
   }
+  encontrarItinerarios
+}
 
   def itinerariosTiempo(vuelos: List[Vuelo], aeropuertos: List[Aeropuerto]): (String, String) => List[List[Vuelo]] = {
     def tiempoTotal(itinerario: List[Vuelo]): Int = {
