@@ -35,29 +35,38 @@ class ItinerariosPar() {
   
   def itinerariosTiempoPar(vuelos: List[Vuelo], aeropuertos: List[Aeropuerto]): (String, String) => List[List[Vuelo]] = {
     def tiempoTotal(itinerario: List[Vuelo]): Int = {
-      (for {
-        vuelo_indice <- 0 until itinerario.length
-      } yield {
-        val origen = aeropuertos.find(_.Cod == itinerario(vuelo_indice).Org).get
-        val destino = aeropuertos.find(_.Cod == itinerario(vuelo_indice).Dst).get
-        val diferenciaHoraria = (destino.GMT - origen.GMT) / 100
+      val (tiempoEnAire, tiempoEnTierra) = (
+        itinerario.par.map { vuelo =>
+          val origen = aeropuertos.find(_.Cod == vuelo.Org).get
+          val destino = aeropuertos.find(_.Cod == vuelo.Dst).get
+          val diferenciaHoraria = (destino.GMT - origen.GMT) / 100
 
-        val salida = itinerario(vuelo_indice).HS * 60 + itinerario(vuelo_indice).MS
-        val llegada = itinerario(vuelo_indice).HL * 60 + itinerario(vuelo_indice).ML + (diferenciaHoraria * 60).toInt
+          val salida = (vuelo.HS * 60) + vuelo.MS
+          val llegada = (vuelo.HL * 60) + vuelo.ML + (diferenciaHoraria * 60).toInt
+          if (llegada >= salida) llegada - salida else (llegada + (24 * 60)) - salida
+        }.sum,
 
-        if (vuelo_indice != 0) {
-          if ((itinerario(vuelo_indice-1).HL * 60 + itinerario(vuelo_indice-1).ML) > salida) {
-            val tiempo_tierra = ((itinerario(vuelo_indice-1).HL * 60 + itinerario(vuelo_indice-1).ML) + (24*60)) - salida 
-            if ((llegada + tiempo_tierra.abs) >= salida) (llegada - salida) + tiempo_tierra.abs else ((llegada  + (24 * 60)) - salida) + tiempo_tierra.abs
+        (for {
+          vuelo_indice <- (1 until itinerario.length).par // Comenzamos desde el segundo vuelo y lo convertimos a paralelo
+        } yield {
+          val vueloActual = itinerario(vuelo_indice)
+          val vueloAnterior = itinerario(vuelo_indice - 1)
+          
+          // Tiempos de llegada y salida en minutos
+          val llegadaAnterior = vueloAnterior.HL * 60 + vueloAnterior.ML
+          val salidaActual = vueloActual.HS * 60 + vueloActual.MS
+          
+          // Calcular el tiempo en tierra
+          if (llegadaAnterior > salidaActual) {
+            salidaActual + (24 * 60) - llegadaAnterior // Si la llegada es después de la medianoche
           } else {
-            val tiempo_tierra = salida - (itinerario(vuelo_indice-1).HL * 60 + itinerario(vuelo_indice-1).ML) 
-            if ((llegada + tiempo_tierra.abs) >= salida) (llegada - salida) + tiempo_tierra.abs else ((llegada  + (24 * 60)) - salida) + tiempo_tierra.abs
+            salidaActual - llegadaAnterior // Si la llegada es antes de la medianoche
           }
-        } else {
-          if (llegada >= salida) llegada - salida else (llegada  + (24 * 60)) - salida
-        }
-      }).sum
-    }
+        }).sum
+      )
+
+  tiempoEnAire + tiempoEnTierra
+}
 
     def encontrarItinerarios(cod1: String, cod2: String): List[List[Vuelo]] = {
       val itinerariosPosibles = buscarVuelos(cod1, cod2, vuelos, List()).par // Convertir a ParVector para paralelizar

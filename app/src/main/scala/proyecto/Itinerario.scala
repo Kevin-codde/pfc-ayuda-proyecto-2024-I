@@ -45,29 +45,32 @@ class Itinerario() {
     //y devuelve una función que devuelve los tres (si los hay) itinerarios que minimizan el tiempo total de viaje
    def itinerariosTiempo(vuelos: List[Vuelo], aeropuertos: List[Aeropuerto]): (String, String) => List[List[Vuelo]] = {
     def tiempoTotal(itinerario: List[Vuelo]): Int = {
+      itinerario.map { vuelo =>
+        val origen = aeropuertos.find(_.Cod == vuelo.Org).get
+        val destino = aeropuertos.find(_.Cod == vuelo.Dst).get
+        val diferenciaHoraria = (destino.GMT - origen.GMT) / 100
+
+        val salida = (vuelo.HS * 60) + vuelo.MS
+        val llegada = (vuelo.HL * 60) + vuelo.ML + (diferenciaHoraria * 60).toInt
+        if (llegada >= salida) llegada - salida else (llegada + (24 * 60)) - salida
+      }.sum +
       (for {
-        vuelo_indice <-  0 until itinerario.length
-        } yield {
-          val origen = aeropuertos.find(_.Cod == itinerario(vuelo_indice).Org).get
-          val destino = aeropuertos.find(_.Cod == itinerario(vuelo_indice).Dst).get
-          val diferenciaHoraria = (destino.GMT - origen.GMT) / 100
-
-          val salida = itinerario(vuelo_indice).HS * 60 + itinerario(vuelo_indice).MS
-          val llegada = itinerario(vuelo_indice).HL * 60 + itinerario(vuelo_indice).ML + (diferenciaHoraria * 60).toInt
-
-          if (vuelo_indice != 0){
-            if ((itinerario(vuelo_indice-1).HL * 60 + itinerario(vuelo_indice-1).ML) > salida ){
-              val tiempo_tierra =  ((itinerario(vuelo_indice-1).HL * 60 + itinerario(vuelo_indice-1).ML) + (24*60)) - salida 
-              if ((llegada + tiempo_tierra.abs) >= salida) (llegada - salida) + tiempo_tierra.abs  else ((llegada  + (24 * 60)) - salida) + tiempo_tierra.abs
-            } else{
-              val tiempo_tierra = salida - (itinerario(vuelo_indice-1).HL * 60 + itinerario(vuelo_indice-1).ML) 
-              if ((llegada + tiempo_tierra.abs) >= salida) (llegada - salida)  + tiempo_tierra.abs  else ((llegada  + (24 * 60)) - salida) + tiempo_tierra.abs
-            }
-          }else {
-            if (llegada >= salida) llegada  - salida  else (llegada  + (24 * 60)) - salida
-          }
+        vuelo_indice <- 1 until itinerario.length // Comenzamos desde el segundo vuelo
+      } yield {
+        val vueloActual = itinerario(vuelo_indice)
+        val vueloAnterior = itinerario(vuelo_indice - 1)
+        
+        // Tiempos de llegada y salida en minutos
+        val llegadaAnterior = vueloAnterior.HL * 60 + vueloAnterior.ML
+        val salidaActual = vueloActual.HS * 60 + vueloActual.MS
+        
+        // Calcular el tiempo en tierra
+        if (llegadaAnterior > salidaActual) {
+          salidaActual + (24 * 60) - llegadaAnterior // Si la llegada es después de la medianoche
+        } else {
+          salidaActual - llegadaAnterior // Si la llegada es antes de la medianoche
         }
-      ).sum
+      }).sum
     }
     //16 35 - 19 48 + (19 40 + 24 08) - 10 55
     def encontrarItinerarios(cod1: String, cod2: String): List[List[Vuelo]] = {
@@ -123,26 +126,26 @@ class Itinerario() {
     encontrarItinerarios
   }
 
-    //Recibe una lista de vuelos y aeropuertos
-    //Retorna una función que recibe los codigos de dos aeropuertos y dos enteros, que es la hora de la cita
-    //Retorna todos los tres mejores itinerarios posibles de cod1 a cod2
-    //que permiten llegar a una hora de la cita
-    def itinerariosSalida(vuelos: List[Vuelo], aeropuertos:List[Aeropuerto]): (String, String, Int, Int) => List[Vuelo]  = {
-      def atiempo(itinerario: List[Vuelo],hora:Int, min:Int):Boolean = {
-        val llegada = (itinerario.last.HL * 60) + itinerario.last.ML
-        val cita = (hora * 60) + min
-        if (llegada > cita) false else true
-      }
-
-      def el_mas_tarde(itinerario: List[Vuelo]):Int = {
-        (itinerario.head.HS * 60) + itinerario.head.MS
-      }
-
-      def encontrarItinerarios(cod1: String, cod2: String, hora:Int, min:Int):List[Vuelo]  = {
-        val itinerariosPosibles = buscarVuelos(cod1, cod2, vuelos, List())
-        itinerariosPosibles.filter(atiempo(_,hora,min)).sortBy(el_mas_tarde).take(1).head
-      }
-      encontrarItinerarios
+  //Recibe una lista de vuelos y aeropuertos
+  //Retorna una función que recibe los codigos de dos aeropuertos y dos enteros, que es la hora de la cita
+  //Retorna todos los tres mejores itinerarios posibles de cod1 a cod2
+  //que permiten llegar a una hora de la cita
+  def itinerariosSalida(vuelos: List[Vuelo], aeropuertos:List[Aeropuerto]): (String, String, Int, Int) => List[Vuelo]  = {
+    def atiempo(itinerario: List[Vuelo],hora:Int, min:Int):Boolean = {
+      val llegada = (itinerario.last.HL * 60) + itinerario.last.ML
+      val cita = (hora * 60) + min
+      if (llegada > cita) false else true
     }
 
+    def el_mas_tarde(itinerario: List[Vuelo]):Int = {
+      (itinerario.head.HS * 60) + itinerario.head.MS
+    }
+
+    def encontrarItinerarios(cod1: String, cod2: String, hora:Int, min:Int):List[Vuelo]  = {
+      val itinerariosPosibles = buscarVuelos(cod1, cod2, vuelos, List())
+      itinerariosPosibles.filter(atiempo(_,hora,min)).sortBy(el_mas_tarde).take(1).head
+    }
+    encontrarItinerarios
+  }
 }
+
